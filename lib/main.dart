@@ -1,5 +1,17 @@
 import 'package:flutter/material.dart';
 
+import 'dart:async';
+
+import 'package:path/path.dart';
+
+import 'package:sqflite/sqflite.dart';
+
+import 'package:googleapis/classroom/v1.dart';
+import 'package:googleapis_auth/auth_io.dart';
+
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
+
 void main() {
   runApp(const MyApp());
 }
@@ -52,21 +64,52 @@ class TodoList extends StatefulWidget {
 
   @override
   State<TodoList> createState() => _TodoListState();
+  
 }
 
 class _TodoListState extends State<TodoList> {
-  final List<Todo> _todos = <Todo>[];
+  final List<Todo> _todos = [];
+  late DatabaseHelper dbHelper;
+  late APIHelper apiHelper;
+  @override
+  void initState() {
+    APIHelper().auth().then((value) => APIHelper().getCourseWork(value!));
+    this.dbHelper = DatabaseHelper();
+    this.apiHelper = APIHelper();
+
+
+
+    this.dbHelper.initDB().whenComplete(() async {
+      setState(() {});
+    });
+
+    this.apiHelper.signInWithGoogle().whenComplete(() 
+
+    DatabaseHelper.instance.retrieveUsers().then((value) {
+      setState(() {
+        _todos.addAll(value);
+      });
+    });
+    super.initState();
+  }
 
   final TextEditingController _textFieldController = TextEditingController();
 
   void _addTodoItem(String name) {
     setState(() {
-      _todos.add(Todo(name: name, completed: false));
+      Todo newTodo = Todo(
+        name: name,
+        completed: false,
+      );
+      DatabaseHelper.instance.insertTask(newTodo).then((value) {
+        newTodo.setID(value);
+        _todos.add(newTodo);
+      });
     });
     _textFieldController.clear();
   }
 
-  Future<void> _displayDialog() async {
+  Future<void> _displayDialog(BuildContext context) async {
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
@@ -110,12 +153,14 @@ class _TodoListState extends State<TodoList> {
   void _handleTodoChange(Todo todo) {
     setState(() {
       todo.completed = !todo.completed;
+      DatabaseHelper.instance.updateUser(todo);
     });
   }
 
   void _deleteTodo(Todo todo) {
     setState(() {
       _todos.removeWhere((element) => element.name == todo.name);
+      DatabaseHelper.instance.deleteTask(todo.id!);
     });
   }
 
@@ -152,7 +197,7 @@ class _TodoListState extends State<TodoList> {
       ),
 
       floatingActionButton: FloatingActionButton(
-        onPressed: _displayDialog,
+        onPressed: () => _displayDialog(context),
         tooltip: 'Make ToDo',
         child: const Icon(Icons.add),
       ), // This trailing comma makes auto-formatting nicer for build methods.
@@ -163,8 +208,25 @@ class _TodoListState extends State<TodoList> {
 class Todo {
   Todo({required this.name, required this.completed});
 
+  Todo.fromMap(Map<String, dynamic> res)
+      : id = res["id"],
+        name = res["name"],
+        completed = (res["completed"] == 1);
+
+  int? id;
   String name;
   bool completed;
+
+  void setID(int id) {
+    this.id = id;
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'completed': completed ? 1 : 0,
+    };
+  }
 }
 
 class TodoItem extends StatelessWidget {
@@ -219,5 +281,112 @@ class TodoItem extends StatelessWidget {
         ),
       ]),
     );
+  }
+}
+
+class DatabaseHelper {
+  static final DatabaseHelper instance = DatabaseHelper._init();
+
+  DatabaseHelper._init() {
+    initDB();
+  }
+
+  late Database db;
+
+  factory DatabaseHelper() => instance;
+
+  Future<void> initDB() async {
+    String path = await getDatabasesPath();
+    db = await openDatabase(
+      join(path, 'tasks.db'),
+      onCreate: (database, version) async {
+        await database.execute(
+          """
+            CREATE TABLE tasks (
+              id INTEGER PRIMARY KEY AUTOINCREMENT, 
+              name TEXT NOT NULL,
+              duedate INTEGER NOT NULL, 
+              complete INTERGER NOT NULL
+            )
+          """,
+        );
+      },
+      version: 1,
+    );
+  }
+
+  Future<int> insertTask(Todo task) async {
+    int result = await db.insert(
+      'tasks',
+      task.toMap(),
+      conflictAlgorithm: ConflictAlgorithm.replace,
+    );
+    return result;
+  }
+
+  Future<int> updateUser(Todo task) async {
+    int result = await db.update(
+      'tasks',
+      task.toMap(),
+      where: "id = ?",
+      whereArgs: [task.id],
+    );
+    return result;
+  }
+
+  Future<List<Todo>> retrieveUsers() async {
+    final List<Map<String, Object?>> queryResult = await db.query('tasks');
+    return queryResult.map((e) => Todo.fromMap(e)).toList();
+  }
+
+  Future<void> deleteTask(int id) async {
+    await db.delete(
+      'tasks',
+      where: "id = ?",
+      whereArgs: [id],
+    );
+  }
+}
+
+class APIHelper {
+  static final APIHelper instance = APIHelper._init();
+  GoogleSignIn? _googleSignIn;
+  AuthClient? _client;
+
+  static const List<String> scopes = [
+    ClassroomApi.classroomCoursesReadonlyScope,
+    ClassroomApi.classroomCourseworkStudentsReadonlyScope,
+    ClassroomApi.classroomCourseworkMeReadonlyScope,
+  ];
+
+  APIHelper._init();
+
+  factory APIHelper() => instance;
+
+  Future<void> signInWithGoogle() async {
+    if (_googleSignIn == null) {
+      _googleSignIn = GoogleSignIn(scopes: scopes);
+    }
+    final GoogleSignInAccount? googleSignInAccount =
+        await _googleSignIn!.signIn();
+    // Handle sign-in result
+  }
+
+  Future<AuthClient?> auth() async {
+    try {
+      _googleSignIn = GoogleSignIn(scopes: scopes);
+      return _googleSignIn!.authenticatedClient();
+    } catch (err) {
+      print(err);
+    }
+    
+  }
+
+  getCourseWork(GoogleSignIn gsi) async {
+    final AuthClient client = await auth() as AuthClient;
+    assert(client != null, 'Authenticated client missing!');
+    final ClassroomApi classroomApi = ClassroomApi(client!);
+    final ListCoursesResponse response = await classroomApi.courses.list();
+    print(response);
   }
 }
