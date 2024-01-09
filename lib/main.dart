@@ -64,7 +64,6 @@ class TodoList extends StatefulWidget {
 
   @override
   State<TodoList> createState() => _TodoListState();
-  
 }
 
 class _TodoListState extends State<TodoList> {
@@ -73,17 +72,19 @@ class _TodoListState extends State<TodoList> {
   late APIHelper apiHelper;
   @override
   void initState() {
-    APIHelper().auth().then((value) => APIHelper().getCourseWork(value!));
     this.dbHelper = DatabaseHelper();
     this.apiHelper = APIHelper();
-
-
 
     this.dbHelper.initDB().whenComplete(() async {
       setState(() {});
     });
 
-    this.apiHelper.signInWithGoogle().whenComplete(() 
+    this.apiHelper.signInWithGoogle().whenComplete(() async {
+      APIHelper()
+          .auth()
+          .then((value) => APIHelper().getCourseWork(APIHelper().gsi));
+      setState(() {});
+    });
 
     DatabaseHelper.instance.retrieveUsers().then((value) {
       setState(() {
@@ -349,15 +350,20 @@ class DatabaseHelper {
 }
 
 class APIHelper {
+  // should be a secret but this ain't production
+  static String clientID =
+      "550994012595-3eoa3vv5v9car4qsnm9kli5843kmvkt5.apps.googleusercontent.com";
+
   static final APIHelper instance = APIHelper._init();
   GoogleSignIn? _googleSignIn;
   AuthClient? _client;
 
   static const List<String> scopes = [
     ClassroomApi.classroomCoursesReadonlyScope,
-    ClassroomApi.classroomCourseworkStudentsReadonlyScope,
     ClassroomApi.classroomCourseworkMeReadonlyScope,
   ];
+
+  get gsi => _googleSignIn;
 
   APIHelper._init();
 
@@ -374,19 +380,21 @@ class APIHelper {
 
   Future<AuthClient?> auth() async {
     try {
-      _googleSignIn = GoogleSignIn(scopes: scopes);
+      _googleSignIn = GoogleSignIn(scopes: scopes, clientId: clientID);
       return _googleSignIn!.authenticatedClient();
     } catch (err) {
       print(err);
     }
-    
+    return null;
   }
 
   getCourseWork(GoogleSignIn gsi) async {
-    final AuthClient client = await auth() as AuthClient;
-    assert(client != null, 'Authenticated client missing!');
-    final ClassroomApi classroomApi = ClassroomApi(client!);
-    final ListCoursesResponse response = await classroomApi.courses.list();
-    print(response);
+    await auth().then((val) async {
+      var client = val;
+      assert(client != null, 'Authenticated client missing!');
+      final ClassroomApi classroomApi = ClassroomApi(client!);
+      final ListCoursesResponse response = await classroomApi.courses.list();
+      print(response.toString());
+    });
   }
 }
