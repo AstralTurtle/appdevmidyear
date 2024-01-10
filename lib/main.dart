@@ -68,10 +68,15 @@ class TodoList extends StatefulWidget {
 
 class _TodoListState extends State<TodoList> {
   final List<Todo> _todos = [];
-  late DatabaseHelper dbHelper;
-  late APIHelper apiHelper;
+  DatabaseHelper dbHelper = DatabaseHelper();
+  APIHelper apiHelper = APIHelper();
   @override
   void initState() {
+    print(ClassroomApi.classroomCourseworkMeReadonlyScope);
+    apiHelper.gsi.onCurrentUserChanged.listen((GoogleSignInAccount? account) {
+      print(account);
+    });
+
     this.dbHelper = DatabaseHelper();
     this.apiHelper = APIHelper();
 
@@ -79,18 +84,15 @@ class _TodoListState extends State<TodoList> {
       setState(() {});
     });
 
-    this.apiHelper.signInWithGoogle().whenComplete(() async {
-      APIHelper()
-          .auth()
-          .then((value) => APIHelper().getCourseWork(APIHelper().gsi));
-      setState(() {});
+    apiHelper.auth().whenComplete(() async {
+      // await apiHelper.getCourseWork();
     });
 
-    DatabaseHelper.instance.retrieveUsers().then((value) {
-      setState(() {
-        _todos.addAll(value);
-      });
-    });
+    // DatabaseHelper.instance.retrieveUsers().then((value) {
+    //   setState(() {
+    //     _todos.addAll(value);
+    //   });
+    // });
     super.initState();
   }
 
@@ -198,7 +200,8 @@ class _TodoListState extends State<TodoList> {
       ),
 
       floatingActionButton: FloatingActionButton(
-        onPressed: () => _displayDialog(context),
+        // onPressed: () => _displayDialog(context),
+        onPressed: () {},
         tooltip: 'Make ToDo',
         child: const Icon(Icons.add),
       ), // This trailing comma makes auto-formatting nicer for build methods.
@@ -355,13 +358,14 @@ class APIHelper {
       "550994012595-3eoa3vv5v9car4qsnm9kli5843kmvkt5.apps.googleusercontent.com";
 
   static final APIHelper instance = APIHelper._init();
-  GoogleSignIn? _googleSignIn;
-  AuthClient? _client;
 
   static const List<String> scopes = [
     ClassroomApi.classroomCoursesReadonlyScope,
     ClassroomApi.classroomCourseworkMeReadonlyScope,
   ];
+
+  GoogleSignIn _googleSignIn = GoogleSignIn(scopes: scopes, clientId: clientID);
+  AuthClient? _client;
 
   get gsi => _googleSignIn;
 
@@ -369,32 +373,29 @@ class APIHelper {
 
   factory APIHelper() => instance;
 
-  Future<void> signInWithGoogle() async {
-    if (_googleSignIn == null) {
-      _googleSignIn = GoogleSignIn(scopes: scopes);
+  Future<void> _handleSignIn() async {
+    try {
+      await _googleSignIn.signIn();
+    } catch (error) {
+      print(error);
     }
-    final GoogleSignInAccount? googleSignInAccount =
-        await _googleSignIn!.signIn();
-    // Handle sign-in result
   }
 
-  Future<AuthClient?> auth() async {
+  Future<void> auth() async {
     try {
       _googleSignIn = GoogleSignIn(scopes: scopes, clientId: clientID);
-      return _googleSignIn!.authenticatedClient();
+      _handleSignIn();
+      _client = await _googleSignIn.authenticatedClient();
     } catch (err) {
       print(err);
     }
     return null;
   }
 
-  getCourseWork(GoogleSignIn gsi) async {
-    await auth().then((val) async {
-      var client = val;
-      assert(client != null, 'Authenticated client missing!');
-      final ClassroomApi classroomApi = ClassroomApi(client!);
-      final ListCoursesResponse response = await classroomApi.courses.list();
-      print(response.toString());
-    });
+  getCourseWork() async {
+    assert(_client != null, 'Authenticated client missing!');
+    final ClassroomApi classroomApi = ClassroomApi(_client!);
+    final ListCoursesResponse response = await classroomApi.courses.list();
+    print(response.toString());
   }
 }
