@@ -72,6 +72,7 @@ class _TodoListState extends State<TodoList> {
   late APIHelper apiHelper;
   @override
   void initState() {
+    print(ClassroomApi.classroomAnnouncementsReadonlyScope + " test");
     this.dbHelper = DatabaseHelper();
     this.apiHelper = APIHelper();
 
@@ -359,8 +360,12 @@ class APIHelper {
   AuthClient? _client;
 
   static const List<String> scopes = [
-    ClassroomApi.classroomCoursesReadonlyScope,
-    ClassroomApi.classroomCourseworkMeReadonlyScope,
+    // ClassroomApi.classroomCoursesReadonlyScope,
+    // ClassroomApi.classroomCourseworkMeReadonlyScope,
+    "https://www.googleapis.com/auth/classroom.courses.readonly",
+    "https://www.googleapis.com/auth/classroom.course-work.readonly",
+    "https://www.googleapis.com/auth/classroom.student-submissions.students.readonly",
+    "https://www.googleapis.com/auth/classroom.student-submissions.me.readonly"
   ];
 
   get gsi => _googleSignIn;
