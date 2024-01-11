@@ -1,0 +1,27 @@
+{
+	"courseWork": [
+		{
+			"courseId": "639368374708",
+			"id": "653872314746",
+			"title": "testTitle",
+			"description": "testInstructions",
+			"state": "PUBLISHED",
+			"alternateLink": "https://classroom.google.com/c/NjM5MzY4Mzc0NzA4/a/NjUzODcyMzE0NzQ2/details",
+			"creationTime": "2024-01-11T00:35:31.414Z",
+			"updateTime": "2024-01-11T00:37:27.235Z",
+			"dueDate": {
+				"year": 2024,
+				"month": 1,
+				"day": 14
+			},
+			"dueTime": {
+				"hours": 4,
+				"minutes": 59
+			},
+			"maxPoints": 100,
+			"workType": "ASSIGNMENT",
+			"submissionModificationMode": "MODIFIABLE_UNTIL_TURNED_IN",
+			"creatorUserId": "115287382013812835991"
+		}
+	]
+}
