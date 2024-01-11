@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'dart:async';
+// import 'package:http/http.dart' as http;
 
 import 'package:path/path.dart';
 
@@ -11,6 +12,11 @@ import 'package:googleapis_auth/auth_io.dart';
 
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
+
+// import 'package:firebase_core/firebase_core.dart';
+// import 'firebase_options.dart';
+
+// ...
 
 void main() {
   runApp(const MyApp());
@@ -72,21 +78,21 @@ class _TodoListState extends State<TodoList> {
   APIHelper apiHelper = APIHelper();
   @override
   void initState() {
-    print(ClassroomApi.classroomAnnouncementsReadonlyScope + " test");
-    print(ClassroomApi.classroomCourseworkMeReadonlyScope);
     apiHelper.gsi.onCurrentUserChanged.listen((GoogleSignInAccount? account) {
+      apiHelper.getCourseWork();
       print(account);
     });
 
     this.dbHelper = DatabaseHelper();
     this.apiHelper = APIHelper();
+    apiHelper.getCourses();
 
     this.dbHelper.initDB().whenComplete(() async {
       setState(() {});
     });
 
-    apiHelper.auth().whenComplete(() async {
-      // await apiHelper.getCourseWork();
+    this.apiHelper.auth().whenComplete(() async {
+      setState(() {});
     });
 
     // DatabaseHelper.instance.retrieveUsers().then((value) {
@@ -388,13 +394,23 @@ class APIHelper {
 
   Future<void> auth() async {
     try {
-      _googleSignIn = GoogleSignIn(scopes: scopes, clientId: clientID);
+      _googleSignIn = GoogleSignIn(scopes: scopes, serverClientId: clientID);
       _handleSignIn();
       _client = await _googleSignIn.authenticatedClient();
     } catch (err) {
       print(err);
     }
-    return null;
+  }
+
+  getCourses() async {
+    // use https bc googleapis sucks ig idk
+
+    // Uri uri = Uri.https("classroom.googleapis.com", "/v1/courses", {
+    //   "courseStates": "ACTIVE",
+    //   "studentId": " aaronj104@nyctudents.net",
+    //   "Authorization": "Bearer ${} "
+    // });
+    // http.get(uri).then((value) => print(value.body));
   }
 
   getCourseWork() async {

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "550994012595",
+    "project_id": "gclassroommidyear",
+    "storage_bucket": "gclassroommidyear.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:550994012595:android:621753d7d023a6121543c6",
+        "android_client_info": {
+          "package_name": "com.example.todolist"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA_QZPQ9oOYr4hzG4QmMT_VHNKxnuhNfKc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
