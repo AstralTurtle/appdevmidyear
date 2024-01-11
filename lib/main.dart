@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'dart:async';
 // import 'package:http/http.dart' as http;
@@ -208,7 +209,9 @@ class _TodoListState extends State<TodoList> {
 
       floatingActionButton: FloatingActionButton(
         // onPressed: () => _displayDialog(context),
-        onPressed: () {},
+        onPressed: () {
+          APIHelper().loadTestData();
+        },
         tooltip: 'Make ToDo',
         child: const Icon(Icons.add),
       ), // This trailing comma makes auto-formatting nicer for build methods.
@@ -360,6 +363,38 @@ class DatabaseHelper {
 }
 
 class APIHelper {
+  // I've spent 22 hours over 3 days trying to get this to work my teacher said i can use test data from api explorer
+  // load test data from local json files
+  loadTestData() async {
+    rootBundle.loadString('assets/json/testAssignments.json').then((value) {
+      JsonDecoder decoder = JsonDecoder();
+      Map<String, dynamic> assignments = decoder.convert(value);
+      List<Todo> todos = makeTodos(assignments);
+      for (var todo in todos) {
+        DatabaseHelper.instance.insertTask(todo).then((value) {
+          todo.setID(value);
+        });
+      }
+    });
+    rootBundle.loadString('assets/json/testCourses.json').then((value) {
+      print(value);
+    });
+  }
+
+  List<Todo> makeTodos(Map<String, dynamic> assignments) {
+    List<Todo> todos = [];
+    for (var assignment in assignments.keys) {
+      if (assignments[assignment]["dueTime"]["hours"] < 168) {
+        // if due in a week or less
+        todos.add(Todo(
+          name: assignment,
+          completed: false,
+        ));
+      }
+    }
+    return todos;
+  }
+
   // should be a secret but this ain't production
   static String clientID =
       "550994012595-3eoa3vv5v9car4qsnm9kli5843kmvkt5.apps.googleusercontent.com";

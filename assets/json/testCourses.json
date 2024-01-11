@@ -1,0 +1,22 @@
+{
+	"courses": [
+		{
+			"id": "639368374708",
+			"name": "testClass",
+			"descriptionHeading": "testClass",
+			"ownerId": "115287382013812835991",
+			"creationTime": "2024-01-11T00:33:38.360Z",
+			"updateTime": "2024-01-11T00:33:38.360Z",
+			"courseState": "ACTIVE",
+			"alternateLink": "https://classroom.google.com/c/NjM5MzY4Mzc0NzA4",
+			"teacherGroupEmail": "testClass_teachers_43f3627f@classroom.google.com",
+			"courseGroupEmail": "testClass_289f8f38@classroom.google.com",
+			"guardiansEnabled": false,
+			"calendarId": "classroom106724403880728204528@group.calendar.google.com",
+			"gradebookSettings": {
+				"calculationType": "TOTAL_POINTS",
+				"displaySetting": "HIDE_OVERALL_GRADE"
+			}
+		}
+	]
+}
