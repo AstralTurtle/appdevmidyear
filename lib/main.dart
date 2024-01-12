@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'dart:convert';
 import 'dart:async';
-// import 'package:http/http.dart' as http;
 
 import 'package:path/path.dart';
 
@@ -13,9 +13,6 @@ import 'package:googleapis_auth/auth_io.dart';
 
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:extension_google_sign_in_as_googleapis_auth/extension_google_sign_in_as_googleapis_auth.dart';
-
-// import 'package:firebase_core/firebase_core.dart';
-// import 'firebase_options.dart';
 
 // ...
 
@@ -79,20 +76,27 @@ class _TodoListState extends State<TodoList> {
   APIHelper apiHelper = APIHelper();
   @override
   void initState() {
-    apiHelper.gsi.onCurrentUserChanged.listen((GoogleSignInAccount? account) {
-      apiHelper.getCourseWork();
-      print(account);
+    // apiHelper.gsi.onCurrentUserChanged.listen((GoogleSignInAccount? account) {
+    //   apiHelper.getCourseWork();
+    //   print(account);
+    // });
+
+    dbHelper = DatabaseHelper()
+      ..initDB().whenComplete(() => print("DB initalized"));
+    apiHelper = APIHelper();
+
+    dbHelper.initDB().whenComplete(() async {
+      apiHelper.loadTestData().whenComplete(() {
+        setState(() {});
+      });
+      dbHelper.retrieveTasks().then((value) {
+        setState(() {
+          _todos.addAll(value);
+        });
+      });
     });
 
-    this.dbHelper = DatabaseHelper();
-    this.apiHelper = APIHelper();
-    apiHelper.getCourses();
-
-    this.dbHelper.initDB().whenComplete(() async {
-      setState(() {});
-    });
-
-    this.apiHelper.auth().whenComplete(() async {
+    apiHelper.auth().whenComplete(() async {
       setState(() {});
     });
 
@@ -107,16 +111,18 @@ class _TodoListState extends State<TodoList> {
   final TextEditingController _textFieldController = TextEditingController();
 
   void _addTodoItem(String name) {
-    setState(() {
-      Todo newTodo = Todo(
-        name: name,
-        completed: false,
+    Todo newTodo = Todo(
+      name: name,
+      completed: false,
+    );
+    DatabaseHelper.instance.insertTask(newTodo).then((value) {
+      newTodo.setID(value);
+      _todos.add(newTodo);
+      setState(
+        () {},
       );
-      DatabaseHelper.instance.insertTask(newTodo).then((value) {
-        newTodo.setID(value);
-        _todos.add(newTodo);
-      });
     });
+
     _textFieldController.clear();
   }
 
@@ -164,7 +170,7 @@ class _TodoListState extends State<TodoList> {
   void _handleTodoChange(Todo todo) {
     setState(() {
       todo.completed = !todo.completed;
-      DatabaseHelper.instance.updateUser(todo);
+      DatabaseHelper.instance.updateTask(todo);
     });
   }
 
@@ -192,6 +198,10 @@ class _TodoListState extends State<TodoList> {
         // Here we take the value from the MyHomePage object that was created by
         // the App.build method, and use it to set our appbar title.
         title: Text(widget.title),
+        leading: TextButton(
+          child: Text("X"),
+          onPressed: dbHelper.deleteDB,
+        ),
       ),
       body: Center(
         // Center is a layout widget. It takes a single child and positions it
@@ -210,7 +220,7 @@ class _TodoListState extends State<TodoList> {
       floatingActionButton: FloatingActionButton(
         // onPressed: () => _displayDialog(context),
         onPressed: () {
-          APIHelper().loadTestData();
+          _displayDialog(context).whenComplete(() => setState(() {}));
         },
         tooltip: 'Make ToDo',
         child: const Icon(Icons.add),
@@ -237,6 +247,14 @@ class Todo {
 
   Map<String, dynamic> toMap() {
     return {
+      'name': name,
+      'completed': completed ? 1 : 0,
+    };
+  }
+
+  Map<String, dynamic> toMapWithID() {
+    return {
+      'id': id,
       'name': name,
       'completed': completed ? 1 : 0,
     };
@@ -301,9 +319,7 @@ class TodoItem extends StatelessWidget {
 class DatabaseHelper {
   static final DatabaseHelper instance = DatabaseHelper._init();
 
-  DatabaseHelper._init() {
-    initDB();
-  }
+  DatabaseHelper._init() {}
 
   late Database db;
 
@@ -319,8 +335,7 @@ class DatabaseHelper {
             CREATE TABLE tasks (
               id INTEGER PRIMARY KEY AUTOINCREMENT, 
               name TEXT NOT NULL,
-              duedate INTEGER NOT NULL, 
-              complete INTERGER NOT NULL
+              completed INTEGER NOT NULL
             )
           """,
         );
@@ -338,7 +353,7 @@ class DatabaseHelper {
     return result;
   }
 
-  Future<int> updateUser(Todo task) async {
+  Future<int> updateTask(Todo task) async {
     int result = await db.update(
       'tasks',
       task.toMap(),
@@ -348,7 +363,7 @@ class DatabaseHelper {
     return result;
   }
 
-  Future<List<Todo>> retrieveUsers() async {
+  Future<List<Todo>> retrieveTasks() async {
     final List<Map<String, Object?>> queryResult = await db.query('tasks');
     return queryResult.map((e) => Todo.fromMap(e)).toList();
   }
@@ -360,6 +375,10 @@ class DatabaseHelper {
       whereArgs: [id],
     );
   }
+
+  Future<void> deleteDB() async {
+    await deleteDatabase(join(await getDatabasesPath(), 'tasks.db'));
+  }
 }
 
 class APIHelper {
@@ -368,26 +387,42 @@ class APIHelper {
   loadTestData() async {
     rootBundle.loadString('assets/json/testAssignments.json').then((value) {
       JsonDecoder decoder = JsonDecoder();
+      // convert internal maps
+
       Map<String, dynamic> assignments = decoder.convert(value);
-      List<Todo> todos = makeTodos(assignments);
+      List<Map<String, dynamic>> temp = [];
+
+      // Accessing the "courseWork" array
+      List<dynamic> courseWorkList = assignments['courseWork'];
+
+      // Convert the "courseWork" array to a list of maps
+
+      for (Map<String, dynamic> courseWork in courseWorkList) {
+        // Add each courseWork object to the list
+        temp.add(courseWork);
+      }
+
+      // print(temp);
+      List<Todo> todos = makeTodos(temp);
       for (var todo in todos) {
         DatabaseHelper.instance.insertTask(todo).then((value) {
           todo.setID(value);
         });
       }
     });
-    rootBundle.loadString('assets/json/testCourses.json').then((value) {
-      print(value);
-    });
+    // rootBundle.loadString('assets/json/testCourses.json').then((value) {
+    //   print(value);
+    // });
   }
 
-  List<Todo> makeTodos(Map<String, dynamic> assignments) {
+  List<Todo> makeTodos(List<Map<String, dynamic>> assignments) {
     List<Todo> todos = [];
-    for (var assignment in assignments.keys) {
-      if (assignments[assignment]["dueTime"]["hours"] < 168) {
+    // JsonDecoder decoder = JsonDecoder();
+    for (var assignment in assignments) {
+      if (assignment["dueTime"]["hours"] < 168) {
         // if due in a week or less
         todos.add(Todo(
-          name: assignment,
+          name: assignment["title"],
           completed: false,
         ));
       }
